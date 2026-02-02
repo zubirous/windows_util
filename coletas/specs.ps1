@@ -1,5 +1,5 @@
 # Get-SystemSpecs.ps1
-# Script para gerar especificações do sistema em Markdown bonito para Jira + verificação de requisitos
+# Script para gerar especificações do sistema em Markdown bonito para Jira + verificações
 
 $os = Get-CimInstance Win32_OperatingSystem
 
@@ -35,10 +35,30 @@ $antivirus = if($av) {$av.displayName -join ', '} else {'Não detectado'}
 
 $hostname = $os.CSName
 
-# === Verificação de requisitos mínimos ===
+# === Verificação de ativação do Windows ===
+$winProduct = Get-CimInstance -ClassName SoftwareLicensingProduct -Filter "PartialProductKey IS NOT NULL AND ApplicationId='55c92734-d682-4d71-983e-d6ec3f16059f'" | Select-Object -First 1
+$winAtivado = if($winProduct.LicenseStatus -eq 1) {'Sim'} else {'Não'}
+
+# === Verificação de portas (Test-NetConnection) ===
+$portasTeste = @(
+    @{Host = 'api.zscansoftware.com';   Port = 80;  Nome = 'api.zscansoftware.com (80)'}
+    @{Host = 'api.zscansoftware.com';   Port = 443; Nome = 'api.zscansoftware.com (443)'}
+    @{Host = 'cloud.zscansoftware.com'; Port = 80;  Nome = 'cloud.zscansoftware.com (80)'}
+    @{Host = 'cloud.zscansoftware.com'; Port = 443; Nome = 'cloud.zscansoftware.com (443)'}
+    @{Host = '127.0.0.1';               Port = 3053; Nome = 'localhost (3053)'}
+    @{Host = '127.0.0.1';               Port = 4514; Nome = 'localhost (4514)'}
+    @{Host = '127.0.0.1';               Port = 4914; Nome = 'localhost (4914)'}
+)
+
+$portasStatus = foreach($item in $portasTeste) {
+    $ok = Test-NetConnection -ComputerName $item.Host -Port $item.Port -InformationLevel Quiet -WarningAction SilentlyContinue
+    "$($item.Nome): $(if($ok){'Liberada'}else{'Bloqueada'})"
+}
+
+# === Verificação de requisitos mínimos (CPU, RAM, Disco) ===
 $motivos = @()
 
-# CPU: pelo menos Intel Core i5 10ª geração ou superior (i7/i9 também aprovam por serem superiores)
+# CPU: i5 10ª gen ou superior, ou i7/i9 qualquer gen
 $cpuOk = $false
 $gen = 0
 if ($cpu -match '(\d+)th Gen') {
@@ -51,23 +71,22 @@ if ($cpu -match '(\d+)th Gen') {
 $serie = ''
 if ($cpu -match 'i([5-9])') { $serie = $matches[1] }
 
-if ($gen -ge 10 -and $serie -ge 5) {  # i5/i7/i9 com 10ª gen ou superior
+if ($gen -ge 10 -and $serie -ge 5) {
     $cpuOk = $true
-} elseif ($serie -in '7','9') {        # i7 ou i9 (mesmo gerações mais antigas são geralmente fortes)
+} elseif ($serie -in '7','9') {
     $cpuOk = $true
 }
 
 if (-not $cpuOk) { $motivos += 'CPU' }
 
-# RAM: pelo menos 16 GB total
+# RAM: ≥ 16 GB total
 $ramOk = $ramTotal -ge 16
 if (-not $ramOk) { $motivos += 'RAM' }
 
-# Armazenamento: pelo menos 40 GB livre no C:
+# Disco: ≥ 40 GB livre
 $discoOk = $discoLivre -ge 40
 if (-not $discoOk) { $motivos += 'Armazenamento' }
 
-# Resultado da verificação
 if ($motivos.Count -eq 0) {
     $status = '*Ambiente aprovado*'
 } else {
@@ -77,13 +96,19 @@ if ($motivos.Count -eq 0) {
 @"
 # Especificações do Sistema
 
-**Sistema Operacional:** $os.Caption  
+**Sistema Operacional:** $($os.Caption)  
 **Processador:** $cpu  
 **Memória RAM:** $ramInfo  
 **Armazenamento (C:):** $discoInfo  
 **Conexão de Internet:** $internet  
 **Antivírus:** $antivirus  
 **Hostname:** $hostname  
+
+**Windows Ativado:** $winAtivado  
+
+**Portas no Firewall:**
+$( $portasStatus -join "  
+" )
 
 **Verificação de Requisitos:** $status
 
