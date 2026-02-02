@@ -1,5 +1,5 @@
 # Get-SystemSpecs.ps1
-# Script para gerar especificações do sistema em Markdown bonito para Jira
+# Script para gerar especificações do sistema em Markdown bonito para Jira + verificação de requisitos
 
 $os = Get-CimInstance Win32_OperatingSystem
 
@@ -35,6 +35,45 @@ $antivirus = if($av) {$av.displayName -join ', '} else {'Não detectado'}
 
 $hostname = $os.CSName
 
+# === Verificação de requisitos mínimos ===
+$motivos = @()
+
+# CPU: pelo menos Intel Core i5 10ª geração ou superior (i7/i9 também aprovam por serem superiores)
+$cpuOk = $false
+$gen = 0
+if ($cpu -match '(\d+)th Gen') {
+    $gen = [int]$matches[1]
+} elseif ($cpu -match 'i[5-9]-(\d{4,5})') {
+    $model = $matches[1]
+    if ($model.Length -ge 4) { $gen = [int]$model.Substring(0,2) }
+}
+
+$serie = ''
+if ($cpu -match 'i([5-9])') { $serie = $matches[1] }
+
+if ($gen -ge 10 -and $serie -ge 5) {  # i5/i7/i9 com 10ª gen ou superior
+    $cpuOk = $true
+} elseif ($serie -in '7','9') {        # i7 ou i9 (mesmo gerações mais antigas são geralmente fortes)
+    $cpuOk = $true
+}
+
+if (-not $cpuOk) { $motivos += 'CPU' }
+
+# RAM: pelo menos 16 GB total
+$ramOk = $ramTotal -ge 16
+if (-not $ramOk) { $motivos += 'RAM' }
+
+# Armazenamento: pelo menos 40 GB livre no C:
+$discoOk = $discoLivre -ge 40
+if (-not $discoOk) { $motivos += 'Armazenamento' }
+
+# Resultado da verificação
+if ($motivos.Count -eq 0) {
+    $status = '*Ambiente aprovado*'
+} else {
+    $status = "*Ambiente reprovado por: $($motivos -join ' | ')*"
+}
+
 @"
 # Especificações do Sistema
 
@@ -44,6 +83,8 @@ $hostname = $os.CSName
 **Armazenamento (C:):** $discoInfo  
 **Conexão de Internet:** $internet  
 **Antivírus:** $antivirus  
-**Hostname:** $hostname
+**Hostname:** $hostname  
+
+**Verificação de Requisitos:** $status
 
 "@
