@@ -45,8 +45,6 @@ $portasTeste = @(
     @{Host = 'api.zscansoftware.com';   Port = 443; Nome = 'api.zscansoftware.com (443)'}
     @{Host = 'cloud.zscansoftware.com'; Port = 80;  Nome = 'cloud.zscansoftware.com (80)'}
     @{Host = 'cloud.zscansoftware.com'; Port = 443; Nome = 'cloud.zscansoftware.com (443)'}
-    @{Host = '127.0.0.1';               Port = 3053; Nome = 'localhost (3053)'}
-    @{Host = '127.0.0.1';               Port = 4514; Nome = 'localhost (4514)'}
     @{Host = '127.0.0.1';               Port = 4914; Nome = 'localhost (4914)'}
 )
 
