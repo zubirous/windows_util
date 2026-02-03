@@ -78,7 +78,7 @@ if ($gen -ge 10 -and $serie -ge 5) {
 if (-not $cpuOk) { $motivos += 'CPU' }
 
 # RAM: ≥ 16 GB total
-$ramOk = $ramTotal -ge 16
+$ramOk = $ramTotal -ge 15
 if (-not $ramOk) { $motivos += 'RAM' }
 
 # Disco: ≥ 40 GB livre
